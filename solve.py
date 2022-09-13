@@ -80,10 +80,22 @@ def extract_letters(img):
 
 def tight_crop(img):
     """Crop the image tightly by removing any black borders."""
-    while img[0].sum() == 0: img = img[1:]
-    while img[-1].sum() == 0: img = img[:-1]
-    while img[:, 0].sum() == 0: img = img[:, 1:]
-    while img[:, -1].sum() == 0: img = img[:, :-1]
+
+    # compute row and column sums
+    csums = img.sum(axis=0)
+    rsums = img.sum(axis=1)
+
+    # find rows and columns that are non-empty
+    ci = np.where(csums > 0)[0]
+    ri = np.where(rsums > 0)[0]
+
+    # crop image to the first and last non-empty row and column
+    # if the image is all zero, it all gets cropped!
+    if ri.size == 0 or ci.size == 0:
+        return img[:0, :0]
+
+    img = img[ri[0]:ri[-1] + 1]
+    img = img[:, ci[0]:ci[-1] + 1]
     return img
 
 
@@ -135,20 +147,30 @@ def rot(msg, n):
     
 
 if __name__ == '__main__':
+    write(' === Logging in...\n')
+    time.sleep(1.5)
+
+    # banner
+    write('*' * 40)
+    write('*    Hello, [anonymous]!               *')
+    write('*    Welcome to W u n d e r b o x      *')
+    write('*' * 40)
+
+    write(' === Reading mysterious parchment...\n')
+
     # read the parchment containing the secret message and separate the R channel
-    print('Reading mysterious parchment...\n')
     image = cv2.imread(FILE_PARCHMENT)[:, :, 0]
     # maximize contrast by scaling all values between 0 and 255
     image -= image.min()
     image *= 255 * (image.max() - image.min())
 
-    print('Applying heat to make invisible ink visible...\n')
+    write(' === Applying heat to make invisible ink visible...\n')
     # extract letter shapes from the image
     message = extract_letters(image)
 
     # read the font shapes from an image and generate a mapping from letters to them
     # reduce to two colors, maximize contrast and invert luminosity
-    print('Analyzing handwriting...\n')
+    write(' === Analyzing handwriting...\n')
     font_image = 255 * (cv2.imread(FILE_FONT, 0) == 0)
     font = read_font(font_image)
 
@@ -170,7 +192,7 @@ if __name__ == '__main__':
         # txt = rot(ocr_text, i)
         # print(freq_distance(txt), txt[:20])
 
-    write('Deciphering encoded message...\n')
+    write(' === Deciphering encoded message...')
 
     distances = {}
 
@@ -179,15 +201,34 @@ if __name__ == '__main__':
         dist = freq_distance(perm)
         distances[perm] = dist
         print('[%s%s]' % (i * '.', (len(ALPHABET) - i) * ' '), end='\r')
-        time.sleep(.05)
+        time.sleep(.02)
 
-    print()
+    print('\n')
     # invert the mapping to get the string with lowest value
     best, _ = sorted(distances.items(), key=itemgetter(1))[0]
-    print('Found the secret message:')
-    write(best, .02)
+    write(' Found the secret message:\n')
+    write(best + '\n', .01)
+    time.sleep(1.0)
 
-    print('Investigating possible message sender...\n')
-    
-    write(zlib.decompress(cv2.imread(FILE_MYSTERY).ravel().tobytes()).decode('ascii'), .001)
+    write(' === Investigating possible message sender...\n')
+    for i in range(20):
+        print('[' + ((i + 1) * '*') + ((19 - i) * ' ') + ']', end='\r')
+        time.sleep(.1)
+    print('\n')
+
+    sender = zlib.decompress(cv2.imread(FILE_MYSTERY).ravel().tobytes()).decode('ascii')
+
+    write(' *** SENDER IDENTIFIED ***')
+    h = '-' * 24
+    write('%s  TRANSMISSION STARTS   %s' % (h, h))
+
+    write(sender, .0005)
+
+    # for row in sender.split('\n'):
+        # write(row, .001)
+        # time.sleep(.05)
+
+    write('%s  TRANSMISSION ENDS     %s\n' % (h, h))
+    write(' === Process complete')
+    print('Signed out automatically.')
 
