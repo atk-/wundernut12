@@ -1,19 +1,39 @@
 # import random
+import time
 import zlib
-import numpy as np
-import cv2
+
 from functools import partial
 from collections import Counter
+from operator import itemgetter
+
+import numpy as np
+import cv2
+
+FILE_PARCHMENT = './parchment.png'
+FILE_FONT = './papyrus.png'
+FILE_MYSTERY = './mystery.png'
+
+# the alphabet used
+ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+# the 12 most common letters in English, approximately
+COMMON12 = 'ETAOINSHRDLU'
 
 
-def freq_distance(txt):
+def write(string, delay=.01):
+    """Aesthetically pleasing delayed write function."""
+    for s in string:
+        print(s, end='', flush=True)
+        time.sleep(delay)
+    print()
+
+
+def freq_distance(text):
     """A simple heuristic to compare a text string's letter frequencies with English letter
     frequency distribution. Computes the distance of the 12 most common letters in the given
     string from their location in the approximation of 12 most common letters in an average
     English corpus (ETAOIN SHRDLU)."""
-    COMMON12 = 'ETAOINSHRDLU'
-
-    order = list(zip(*Counter(txt).most_common()))[0]
+    # get the frequencies of each letter in the text
+    order = list(zip(*Counter(text).most_common()))[0]
     ret = 0
 
     for i, ch in enumerate(COMMON12):
@@ -72,7 +92,6 @@ def read_font(fimg):
     # extract letters and crop out any empty space around the letter shapes
     letters = map(tight_crop, extract_letters(fimg))
 
-    ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     return {ch: img.astype(np.uint8) for ch, img in zip(ALPHABET, letters)}
 
 
@@ -117,31 +136,31 @@ def rot(msg, n):
 
 if __name__ == '__main__':
     # read the parchment containing the secret message and separate the R channel
-    image = cv2.imread('./parchment.png')[:, :, 0]
+    print('Reading mysterious parchment...\n')
+    image = cv2.imread(FILE_PARCHMENT)[:, :, 0]
     # maximize contrast by scaling all values between 0 and 255
     image -= image.min()
     image *= 255 * (image.max() - image.min())
 
+    print('Applying heat to make invisible ink visible...\n')
     # extract letter shapes from the image
     message = extract_letters(image)
 
     # read the font shapes from an image and generate a mapping from letters to them
-    font_file = './papyrus.png'
     # reduce to two colors, maximize contrast and invert luminosity
-    font_image = 255 * (cv2.imread(font_file, 0) == 0)
+    print('Analyzing handwriting...\n')
+    font_image = 255 * (cv2.imread(FILE_FONT, 0) == 0)
     font = read_font(font_image)
 
-    ocr_chars = ['.'] * len(message)
+    # ocr_chars = ['.'] * len(message)
+    ocr_text = ''
 
-    for i, letter in enumerate(message):
-    # for i in random.sample(list(range(len(message))), len(message)):
-        letter = message[i]
+    # find best match in the font alphabet for each extracted letter
+    for i, letter in enumerate(message, 1):
+        print('%d / %d...' % (i, len(message)), end='\r')
         letter = tight_crop(letter)
         _, char, _ = best_match(letter, font)
-        ocr_chars[i] = char
-        ocr_text = ''.join(ocr_chars)
-        # print(''.join(ocr_text)[:80], end='\r', flush=True)
-        # print(char, end='', flush=True)
+        ocr_text += char
 
     print()
 
@@ -151,9 +170,24 @@ if __name__ == '__main__':
         # txt = rot(ocr_text, i)
         # print(freq_distance(txt), txt[:20])
 
-    permutations = [rot(ocr_text, i) for i in range(26)]
-    distances = {freq_distance(txt): txt for txt in permutations}
-    print(distances[min(distances.keys())])
+    write('Deciphering encoded message...\n')
+
+    distances = {}
+
+    for i, ch in enumerate(ALPHABET, 1):
+        perm = rot(ocr_text, i - 1)
+        dist = freq_distance(perm)
+        distances[perm] = dist
+        print('[%s%s]' % (i * '.', (len(ALPHABET) - i) * ' '), end='\r')
+        time.sleep(.05)
+
+    print()
+    # invert the mapping to get the string with lowest value
+    best, _ = sorted(distances.items(), key=itemgetter(1))[0]
+    print('Found the secret message:')
+    write(best, .02)
+
+    print('Investigating possible message sender...\n')
     
-    print(zlib.decompress(cv2.imread('mystery.png', 0).ravel().tobytes()).decode('ascii'))
+    write(zlib.decompress(cv2.imread(FILE_MYSTERY).ravel().tobytes()).decode('ascii'), .001)
 
