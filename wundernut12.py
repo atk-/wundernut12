@@ -9,12 +9,18 @@ from operator import itemgetter
 import numpy as np
 import cv2
 
+# the parchment file to investigate
 FILE_PARCHMENT = './parchment.png'
+
+# font letters in an image
 FILE_FONT = './papyrus.png'
+
+# ???
 FILE_MYSTERY = './mystery.png'
 
 # the alphabet used
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
 # the 12 most common letters in English, approximately
 COMMON12 = 'ETAOINSHRDLU'
 
